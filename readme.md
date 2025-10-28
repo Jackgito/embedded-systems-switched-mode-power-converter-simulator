@@ -11,7 +11,7 @@ The work can be executed on **Zynq** or **Nucleo boards** and requires only a bo
 Juhani Manninen
 Leevi Lahtinen
 Saska Kynäslahti
-Tuure
+Tuure Skyttä
 
 ---
 
