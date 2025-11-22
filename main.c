@@ -1,121 +1,111 @@
 #include <bitwise.h>
 #include <stm32f4xx.h>
-#include "uart_utils.h"       // Tuodaan UART-funktiot
-#include "state_functions.h"  // Tuodaan tilakoneen funktiot
-#include "piController.h"
-#include "converter_model.h"
+#include "uart_utils.h"
+#include "state_functions.h" 
+#include "piController.h"    
+#include <stdio.h>
 
-// Define system states
+// Timer setup for enabling 1 second loop
+volatile uint32_t msTicks = 0;
+
+void SysTick_Handler(void) {
+    msTicks++;
+}
+
+uint32_t GetTick(void) {
+    return msTicks;
+}
+
+void SysTick_Init(void) {
+    SysTick_Config(SystemCoreClock / 1000);
+}
+
+
+// Reads the user button (PC13)
+// return 1 if button was just pressed, 0 otherwise.
+
+int check_button_press(void) {
+    static int prev_state = 1; // 1 = Unpressed (Pull-up)
+    int current_state = (GPIOC->IDR & (1 << 13)) ? 1 : 0;
+    int pressed = 0;
+
+    // Detect if button was just pressed
+    if (prev_state == 1 && current_state == 0) {
+        pressed = 1;
+        // Debounce to avoid double clicks
+        for(volatile int i=0; i<50000; i++); 
+    }
+    
+    prev_state = current_state;
+    return pressed;
+}
+
 typedef enum {
-    STATE_IDLE = 1,    // System is idle
-    STATE_CONFIG,      // Configuration mode
-    STATE_ACTIVE       // Active control mode
+    STATE_IDLE = 1,
+    STATE_CONFIG,
+    STATE_ACTIVE
 } SystemState_t;
-
-extern uint32_t SystemCoreClock; // system clock frequency
 
 int main()
 {
-	// --- Alustukset ---
+    SysTick_Init(); 
 
-	// enable GPIOA & GPIOC clock
-	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOCEN;
+    // Enable Clocks
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOCEN;
+    RCC->APB1ENR |= RCC_APB1ENR_USART2EN | RCC_APB1ENR_TIM2EN;
 
-	// enable USART2 clock & timer 2 clock
-	RCC->APB1ENR |= RCC_APB1ENR_USART2EN | RCC_APB1ENR_TIM2EN;
+    uart_init();
+    uart_send_str("\r\n--- DC-DC Power converter started ---\r\n");
 
-	// --- UART (USART2) Alustus ---
-	uart_init(); // Kutsutaan alustusfunktiota
+    // Timer 2 Setup (PWM)
+    bits_val(GPIOA->AFR[0], 4, 5, 1); // PA5 -> TIM2_CH1
+    TIM2->PSC   = 512;
+    TIM2->ARR   = 3999;
+    bits_val(TIM2->CCMR1, 4, 1, 7);   // PWM mode 1
+    TIM2->CCER |= TIM_CCER_CC1E;      // Enable channel 1
+    TIM2->CCR1 = 0;                   // Start with 0 duty
 
-	// --- Display welcome message ---
-	uart_send_str("\r\n");
-	uart_send_str("*******************************************\r\n");
-	uart_send_str("*        STM32 PI Controller App         *\r\n");
-	uart_send_str("*  Version: 1.0                          *\r\n");
-	uart_send_str("*                                         *\r\n");
-	uart_send_str("*  Description:                           *\r\n");
-	uart_send_str("*  This application implements a PI      *\r\n");
-	uart_send_str("*  controller for motor/speed control    *\r\n");
-	uart_send_str("*  using STM32 Nucleo F411RE board.      *\r\n");
-	uart_send_str("*******************************************\r\n\r\n");
-	uart_send_str("System initialized. Starting main loop...\r\n");
+    // Button Setup (PC13)
+    bits_val(GPIOC->MODER, 2, 13, 0); // Input
+    bits_val(GPIOC->PUPDR, 2, 13, 1); // Pull-up
 
-	// --- LED (LD2) ja Ajastin (TIM2) Alustus ---
-	// configure PA5 (LED) as timer 2 CH1 (Tämä on AF-tila vilkkumista varten)
-	bits_val(GPIOA->AFR[0], 4, 5, 1); // PA5 -> TIM2_CH1
-	// (MODER-rekisteriä hallinnoidaan nyt dynaamisesti state_functions.c-tiedostossa)
+    SystemState_t state = STATE_IDLE;
+    int is_new_state = 1; 
 
-	// configure timer 2 (compare mode)
-	TIM2->PSC   = 512;               // prescaler
-	TIM2->ARR   = 3999;              // auto-reload
-	bits_val(TIM2->CCMR1, 4, 1, 7);  // CH1 PWM mode
-	TIM2->CCER |= TIM_CCER_CC1E;     // CH1 capture/compare enable
-	TIM2->CCR1 = TIM2->ARR/2;        // set 50% duty cycle
+    while (1) {
 
-	// --- NAPPI (B1) Alustus ---
-	bits_val(GPIOC->MODER, 2, 13, 0); // PC13 Mode = Input (00)
-	bits_val(GPIOC->PUPDR, 2, 13, 1); // PC13 PUPDR = Pull-up (01)
+        if (check_button_press()) {
+            // Determine the NEXT state based on CURRENT state
+            switch (state) {
+                case STATE_IDLE:   state = STATE_CONFIG; break;
+                case STATE_CONFIG: state = STATE_ACTIVE; break;
+                case STATE_ACTIVE: state = STATE_IDLE;   break;
+            }
+            // Flag that we have just entered a new state
+            is_new_state = 1; 
+        }
 
-	// --- State machine variables ---
-	SystemState_t state = STATE_IDLE; // Start in IDLE state
-	int button_was_pressed = 0; // Button state tracking (debounce)
+        switch (state) {
+            case STATE_IDLE:
+                // RUN ONCE
+                if (is_new_state) {
+                    handle_idle_state();
+                    is_new_state = 0; // Task done, wait for next transition
+                }
+                break;
 
-	// Initialize PI Controller
-	PIParams_t piParams;
-	PIState_t piState;
-	PIController_Init(&piParams, &piState);
+            case STATE_CONFIG:
+                // RUN ONCE
+                if (is_new_state) {
+                    handle_config_state();
+                    is_new_state = 0; // Task done
+                }
+                break;
 
-	// Set initial state (IDLE: LED On)
-	state = STATE_IDLE;
-	handle_idle_state();
-
-	// --- Päälooppi ---
-	while (1)
-	{
-		// Tarkista napin tila
-		int button_is_pressed = !(GPIOC->IDR & (1 << 13));
-
-		// Jos nappi on juuri painettu
-		if (button_is_pressed && !button_was_pressed)
-		{
-			// Cycle through states: IDLE -> CONFIG -> ACTIVE -> IDLE...
-			switch (state) {
-				case STATE_IDLE:
-					state = STATE_CONFIG;
-					break;
-				case STATE_CONFIG:
-					state = STATE_ACTIVE;
-					break;
-				case STATE_ACTIVE:
-				default:
-					state = STATE_IDLE;
-					break;
-			}
-
-			// Execute actions based on the new state
-			switch (state) {
-				case STATE_IDLE:
-					handle_idle_state();
-					uart_send_str("State: IDLE\r\n");
-					break;
-
-				case STATE_CONFIG:
-					handle_config_state();
-					uart_send_str("State: CONFIG\r\n");
-					break;
-
-				case STATE_ACTIVE:
-					handle_active_state();
-					uart_send_str("State: ACTIVE\r\n");
-					break;
-			}
-
-			button_was_pressed = 1;
-		}
-		// Jos nappi vapautetaan
-		else if (!button_is_pressed)
-		{
-			button_was_pressed = 0;
-		}
-	}
+            case STATE_ACTIVE:
+                // RUN REPEATEDLY
+                handle_active_state(); 
+                break;
+        }
+    }
 }

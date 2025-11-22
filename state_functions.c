@@ -1,90 +1,116 @@
+/* 
+Controls the different states of the system: IDLE, CONFIG and ACTIVE
+*/
+
 #include "state_functions.h"
-#include "uart_utils.h"  // For UART functions
-#include "bitwise.h"     // For bits_val()
-#include "piController.h" // For PI controller definitions
-#include <stm32f4xx.h>   // For STM32 register access
+#include "uart_utils.h"
+#include "piController.h"
+#include "converter_model.h"
+#include <stm32f4xx.h>
+#include <stdio.h>
+#include <bitwise.h> 
 
-volatile uint8_t param_Kp = 0;
-volatile uint8_t param_Ki = 0;
-volatile uint8_t param_Ref = 0;
+// --- Global Parameters ---
+float param_Kp = 1.0f;
+float param_Ki = 0.1f;
+float param_Ref = 5.0f;
 
-void handle_idle_state(void)
-{
-	// State 1: Idle Mode
-	// Configure PA5 as GPO
-	bits_val(GPIOA->MODER, 2, 5, 1);
-	// Stop timer (just to be sure)
-	TIM2->CR1 &= ~TIM_CR1_CEN;
-	// Set pin low (LED off)
-	GPIOA->BSRR = (1 << (5 + 16)); // Using BSRR reset part
-	uart_send_str("\r\nEntering IDLE state\r\n");
+// Enables loop
+extern uint32_t GetTick(void);
+
+void handle_idle_state(void) {
+    print("--- IDLE MODE ---");
+    print("PWM is OFF. Press button to Config.");
+    
+    // Turn off PWM (Disable Counter)
+    TIM2->CR1 &= ~TIM_CR1_CEN;
+    
+    // Set Duty Cycle to 0
+    TIM2->CCR1 = 0;
 }
 
-void handle_config_state(void)
-{
-	// State 2: Configuration Mode
-	// Configure PA5 as GPO
-	bits_val(GPIOA->MODER, 2, 5, 1);
-	// Stop timer (just to be sure)
-	TIM2->CR1 &= ~TIM_CR1_CEN;
-	// Set pin high (LED on)
-	GPIOA->BSRR = (1 << 5);
-	uart_send_str("\r\nEntering CONFIGURATION state\r\n");
+void handle_config_state(void) {
+    print("--- CONFIG MODE ---");
+    bits_val(GPIOA->MODER, 2, 5, 1); // Set PA5 to Output mode for LED indication
+    
+    // Stop timer (just to be sure)
+    TIM2->CR1 &= ~TIM_CR1_CEN;
+    
+    // Set pin high (LED on) to indicate Config Mode
+    GPIOA->BSRR = (1 << 5);
+    print("Entering CONFIGURATION state");
 
-	// Get Kp parameter
-	uart_send_str("\r\nEnter Kp (0-9): ");
-	param_Kp = uart_recv() - '0';
-	uart_send_str("\r\nKp set to: ");
-	uart_send(param_Kp + '0');
+    // Get Kp parameter
+    print("Enter Kp (0-9): ");
+    param_Kp = (float)(uart_recv() - '0');
+    print("Kp set to: %d", (int)param_Kp);
 
-	// Get Ki parameter
-	uart_send_str("\r\nEnter Ki (0-9): ");
-	param_Ki = uart_recv() - '0';
-	uart_send_str("\r\nKi set to: ");
-	uart_send(param_Ki + '0');
-	uart_send_str("\r\n");
-	/////////////////////////////////////////////////////////////////////////////
-	uart_send_str("Give a value for reference voltage:");
-	param_Ref = uart_recv() - '0';
+    // Get Ki parameter
+    print("Enter Ki (0-9): ");
+    param_Ki = (float)(uart_recv() - '0');
+    print("Ki set to: %d", (int)param_Ki);
 
+    // Get Reference Voltage
+    print("Give a value for reference voltage (0-9):");
+    param_Ref = (float)(uart_recv() - '0');
 
-	// give some terminal output
-	uart_send_str("\r\nGiven parameter for reference voltage: ");
-	uart_send(param_Ref + '0');
-	uart_send_str("\r\n");
+    // give some terminal output
+    print("Given parameter for reference voltage: %d", (int)param_Ref);
 
-	// control timer prescaler (LED blinking speed)
-	TIM2->PSC = 512 << (param_Ref - 1);
-	/////////////////////////////////////////////////////////////////////////////
-	uart_send_str("\r\nParameters are now set. Please change the mode!\r\n");
+    // control timer prescaler (LED blinking speed)
+    // FIX: Explicitly cast float param_Ref to int before shifting
+    int shift_amount = (int)param_Ref - 1;
+    
+    // Safety check to prevent negative shift
+    if (shift_amount < 0) shift_amount = 0; 
+    
+    TIM2->PSC = 512 << shift_amount;
+    
+    print("Parameters are now set. Please change the mode!");
 }
 
-void handle_active_state(void)
-{
-	// State 3: Active Control Mode
-	// Configure PA5 as Alternate Function (PWM)
-	bits_val(GPIOA->MODER, 2, 5, 2);
-	// Start timer for PWM
-	TIM2->CR1 |= TIM_CR1_CEN;
-	
-	// Update PI controller with current parameters
-	PIParams_t params = {
-	    .Kp = (float)param_Kp,
-	    .Ki = (float)param_Ki,
-	    .reference = (float)param_Ref,
-	    .outputMin = 0.0f,
-	    .outputMax = 1.0f
-	};
-	PIState_t state = {0};
-	PIController_Update(&params, &state, 0);
-	
-	uart_send_str("\r\nEntering ACTIVE control mode\r\n");
-	uart_send_str("Current parameters - ");
-	uart_send_str("Kp: ");
-	uart_send(param_Kp + '0');
-	uart_send_str(", Ki: ");
-	uart_send(param_Ki + '0');
-	uart_send_str(", Ref: ");
-	uart_send(param_Ref + '0');
-	uart_send_str("\r\n");
+void handle_active_state(void) {
+    // 1. ENSURE PWM IS ON (Safety check)
+    if (!(TIM2->CR1 & TIM_CR1_CEN)) {
+        bits_val(GPIOA->MODER, 2, 5, 2); // Ensure PA5 is AF (PWM)
+        TIM2->CR1 |= TIM_CR1_CEN;        // Enable Timer
+    }
+
+    // 2. STATIC STATE (Must persist across function calls)
+    static PIState_t piState = {0}; 
+    
+    // 3. PRINTING TIMER
+    static uint32_t last_print_time = 0;
+    uint32_t current_time = GetTick(); 
+
+    // 4. CONTROL LOOP (Runs every single time function is called - Fast)
+    PIParams_t params;
+    params.Kp = param_Kp;
+    params.Ki = param_Ki;
+    params.reference = param_Ref;
+    params.outputMin = 0.0f;
+    params.outputMax = 10.0f; // Max voltage
+
+    // Run PI Algorithm
+    // dt = 0.01s (You should ideally measure actual delta time)
+    float control_signal = PIController_Update(&params, &piState, 0.01f);
+
+    // Log data every second
+    if ((current_time - last_print_time) >= 1000) 
+    {
+
+        // Run Converter Model
+        float converter_output = runConverterModel(control_signal);
+        char buffer[80]; 
+
+        print("[ACTIVE] Running...");
+        
+        // Print voltages and parameters
+        print("Reference/target voltage: %.2f V | Output voltage: %.2f V | Control signal: %.2f", 
+              param_Ref, converter_output, control_signal);
+        print("Params -> Kp: %.2f, Ki: %.2f", param_Kp, param_Ki);
+        print("");
+
+        last_print_time = current_time;
+    }
 }

@@ -29,37 +29,33 @@ float PIController_Update(PIParams_t *params, PIState_t *state, float feedback)
 {
     if (!params || !state) return 0.0f;
 
-    // --- 1. Compute error ---
+    // Compute error
     float error = params->reference - feedback;
 
-    // --- 2. Update integral term ---
+    // Update integral term
     state->integral += error * params->Ki;
 
-    // --- 3. Anti-windup: clamp integrator within output range ---
+    // Camp integrator within output range
     if (state->integral > params->outputMax)
         state->integral = params->outputMax;
     else if (state->integral < params->outputMin)
         state->integral = params->outputMin;
 
-    // --- 4. Compute raw output ---
+    // Compute raw output
     float output = params->Kp * error + state->integral;
 
-    // --- 5. Clamp output to valid range ---
+    // Clamp output to valid range
     if (output > params->outputMax)
         output = params->outputMax;
     else if (output < params->outputMin)
         output = params->outputMin;
 
-    // --- 6. Store last error (for optional derivative or debugging) ---
+    // Store last error
     state->lastError = error;
 
-    // --- 7. Return control signal ---
     return output;
 }
 
-/**
- * @brief Reset controller internal state.
- */
 void PIController_Reset(PIState_t *state)
 {
     if (!state) return;

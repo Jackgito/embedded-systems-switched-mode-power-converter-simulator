@@ -1,5 +1,10 @@
+/* 
+Handles user input and printing to the serial console
+*/
+
 #include "uart_utils.h"
-#include "bitwise.h" // Oletetaan, että bitwise.h on projektin polussa
+#include "bitwise.h"
+#include <string.h>
 
 // Alustaa USART2:n
 void uart_init(void)
@@ -45,4 +50,25 @@ char uart_recv()
 
 	// return received byte
 	return USART2->DR;
+}
+
+// Print function with automatic newline and format support
+// Example usage: print("Hello, %s!", "world");
+void print(const char *format, ...)
+{
+    char buffer[128];
+    va_list args;
+    
+    // Format the string with variable arguments
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    
+    // Add newline if not present
+    if (buffer[strlen(buffer) - 1] != '\n') {
+        strcat(buffer, "\r\n");
+    }
+    
+    // Send the formatted string
+    uart_send_str(buffer);
 }

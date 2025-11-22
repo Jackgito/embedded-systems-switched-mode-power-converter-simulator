@@ -1,16 +1,14 @@
-#ifndef STATE_FUNCTIONS_H_
-#define STATE_FUNCTIONS_H_
+#ifndef STATE_FUNCTIONS_H
+#define STATE_FUNCTIONS_H
 
 #include <stdint.h>
 
-// State handler function prototypes
+extern float param_Kp;
+extern float param_Ki;
+extern float param_Ref;
+
 void handle_idle_state(void);
 void handle_config_state(void);
 void handle_active_state(void);
 
-// Global parameters (temporary - consider passing these as parameters)
-extern volatile uint8_t param_Kp;
-extern volatile uint8_t param_Ki;
-extern volatile uint8_t param_Ref;
-
-#endif /* STATE_FUNCTIONS_H_ */
+#endif

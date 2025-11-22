@@ -1,1 +1,3 @@
-../converter_model.c:10:7:runConverterModel	48	static
+../converter_model.c:10:7:runConverterModel	24	static
+../converter_model.c:20:7:convert	40	static
+../converter_model.c:61:6:display_results	16	static
