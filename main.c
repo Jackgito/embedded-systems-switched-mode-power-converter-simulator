@@ -57,10 +57,10 @@ int main()
     uart_init();
     uart_send_str("\r\n--- DC-DC Power converter started ---\r\n");
 
-    // Timer 2 Setup (PWM)
+    // Timer 2 Setup (PWM) - 50kHz frequency
     bits_val(GPIOA->AFR[0], 4, 5, 1); // PA5 -> TIM2_CH1
-    TIM2->PSC   = 512;
-    TIM2->ARR   = 3999;
+    TIM2->PSC = 0;                    // No prescaler
+    TIM2->ARR = 319;                  // For 16MHz clock: 16,000,000 / (1 * 320) = 50kHz
     bits_val(TIM2->CCMR1, 4, 1, 7);   // PWM mode 1
     TIM2->CCER |= TIM_CCER_CC1E;      // Enable channel 1
     TIM2->CCR1 = 0;                   // Start with 0 duty

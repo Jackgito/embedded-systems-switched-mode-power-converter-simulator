@@ -64,7 +64,7 @@ float convert(float u_in, ConverterState* state) {
 
 // Helper function kept for debugging
 void display_results(float u_in, float u_out) {
-    print("--- Converter Model ---");
-    print("Input: %.4f V", u_in);
-    print("Output: %.4f V", u_out);
+    println("--- Converter Model ---");
+    println("Input: %.4f V", u_in);
+    println("Output: %.4f V", u_out);
 }
