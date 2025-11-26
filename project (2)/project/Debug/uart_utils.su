@@ -1,0 +1,6 @@
+../uart_utils.c:5:6:uart_init	4	static
+../uart_utils.c:19:6:uart_send	16	static
+../uart_utils.c:30:6:uart_send_str	24	static
+../uart_utils.c:40:6:uart_recv	4	static
+../uart_utils.c:52:10:uart_recv_int_until_d	16	static
+../uart_utils.c:72:7:uart_recv_float_until_d	24	static
