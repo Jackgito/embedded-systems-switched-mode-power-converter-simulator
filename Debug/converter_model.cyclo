@@ -1,3 +1,1 @@
-../converter_model.c:15:7:runConverterModel	1
-../converter_model.c:25:7:convert	1
-../converter_model.c:66:6:display_results	1
+../converter_model.c:10:7:runConverterModel	1

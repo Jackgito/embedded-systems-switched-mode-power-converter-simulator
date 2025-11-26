@@ -18,4 +18,7 @@ char uart_recv(void);
 uint32_t uart_recv_int_until_d(void);
 float uart_recv_float_until_d(void);
 
+uint32_t uart_recv_int_until_d(void);
+float uart_recv_float_until_d(void);
+
 #endif /* UART_UTILS_H_ */
