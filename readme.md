@@ -4,9 +4,7 @@ This project is a **Switched Mode Power Converter Simulator**, developed as part
 
 The project is divided into multiple modules with different purposes to promote code readability and maintainability. main.c file is the entry point of the program and it is responsible for initializing the system and running the main loop.
 
-
-
-More information about the project can be found in the assignment instructions PDF and project work report files.
+More information about the project can be found in the assignment instructions PDF and project work report files in documentation folder.
 
 ## Project members
 
