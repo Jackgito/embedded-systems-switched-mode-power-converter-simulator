@@ -1,14 +1,9 @@
-#ifndef STATE_FUNCTIONS_H
-#define STATE_FUNCTIONS_H
+#ifndef STATE_FUNCTIONS_H_
+#define STATE_FUNCTIONS_H_
 
-#include <stdint.h>
+// Funktioprototyypit tiloille
+void handle_state_1(void);
+void handle_state_2(void);
+void handle_state_3(void);
 
-extern float param_Kp;
-extern float param_Ki;
-extern float param_Ref;
-
-void handle_idle_state(void);
-void handle_config_state(void);
-void handle_active_state(void);
-
-#endif
+#endif /* STATE_FUNCTIONS_H_ */

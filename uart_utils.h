@@ -2,8 +2,6 @@
 #define UART_UTILS_H_
 
 #include <stm32f4xx.h>
-#include <stdarg.h>
-#include <stdio.h>
 
 extern uint32_t SystemCoreClock; // system clock frequency
 
@@ -16,8 +14,8 @@ void uart_init(void);
 void uart_send(char c);
 void uart_send_str(char *s);
 char uart_recv(void);
-void print(const char *format, ...);
-void println(const char *format, ...);
-float read_float_from_uart(float min, float max);
+
+uint32_t uart_recv_int_until_d(void);
+float uart_recv_float_until_d(void);
 
 #endif /* UART_UTILS_H_ */

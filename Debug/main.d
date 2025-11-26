@@ -3,7 +3,7 @@ main.o: ../main.c ../external/bitwise.h ../external/CMSIS/stm32f4xx.h \
  ../external/CMSIS/cmsis_version.h ../external/CMSIS/cmsis_compiler.h \
  ../external/CMSIS/cmsis_gcc.h ../external/CMSIS/mpu_armv7.h \
  ../external/CMSIS/system_stm32f4xx.h ../uart_utils.h \
- ../state_functions.h ../piController.h
+ ../state_functions.h ../pi_controller.h ../converter_model.h
 ../external/bitwise.h:
 ../external/CMSIS/stm32f4xx.h:
 ../external/CMSIS/stm32f411xe.h:
@@ -15,4 +15,5 @@ main.o: ../main.c ../external/bitwise.h ../external/CMSIS/stm32f4xx.h \
 ../external/CMSIS/system_stm32f4xx.h:
 ../uart_utils.h:
 ../state_functions.h:
-../piController.h:
+../pi_controller.h:
+../converter_model.h:

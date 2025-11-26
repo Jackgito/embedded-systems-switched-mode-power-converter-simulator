@@ -7,21 +7,21 @@
 C_SRCS += \
 ../converter_model.c \
 ../main.c \
-../piController.c \
+../pi_controller.c \
 ../state_functions.c \
 ../uart_utils.c 
 
 OBJS += \
 ./converter_model.o \
 ./main.o \
-./piController.o \
+./pi_controller.o \
 ./state_functions.o \
 ./uart_utils.o 
 
 C_DEPS += \
 ./converter_model.d \
 ./main.d \
-./piController.d \
+./pi_controller.d \
 ./state_functions.d \
 ./uart_utils.d 
 
@@ -33,7 +33,7 @@ C_DEPS += \
 clean: clean--2e-
 
 clean--2e-:
-	-$(RM) ./converter_model.cyclo ./converter_model.d ./converter_model.o ./converter_model.su ./main.cyclo ./main.d ./main.o ./main.su ./piController.cyclo ./piController.d ./piController.o ./piController.su ./state_functions.cyclo ./state_functions.d ./state_functions.o ./state_functions.su ./uart_utils.cyclo ./uart_utils.d ./uart_utils.o ./uart_utils.su
+	-$(RM) ./converter_model.cyclo ./converter_model.d ./converter_model.o ./converter_model.su ./main.cyclo ./main.d ./main.o ./main.su ./pi_controller.cyclo ./pi_controller.d ./pi_controller.o ./pi_controller.su ./state_functions.cyclo ./state_functions.d ./state_functions.o ./state_functions.su ./uart_utils.cyclo ./uart_utils.d ./uart_utils.o ./uart_utils.su
 
 .PHONY: clean--2e-
 
